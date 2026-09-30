@@ -8,7 +8,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:pickle/main.dart';
+import 'package:pickle/app/pickle_app.dart';
 
 Future<void> _openCollectionWithOptions(
   WidgetTester tester,
@@ -60,7 +60,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Tournament'), findsOneWidget);
-    expect(find.text('Add one more option to use this method.'), findsNWidgets(2));
+    expect(
+      find.text('Add one more option to use this method.'),
+      findsNWidgets(2),
+    );
     await tester.tap(find.text('Random'));
     await tester.pumpAndSettle();
 
@@ -71,10 +74,12 @@ void main() {
   testWidgets('tournament advances through the selected bracket', (
     WidgetTester tester,
   ) async {
-    await _openCollectionWithOptions(
-      tester,
-      ['Choice A', 'Choice B', 'Choice C', 'Choice D'],
-    );
+    await _openCollectionWithOptions(tester, [
+      'Choice A',
+      'Choice B',
+      'Choice C',
+      'Choice D',
+    ]);
     await tester.tap(find.text("I'm in a pickle!"));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Tournament'));
@@ -96,7 +101,11 @@ void main() {
   testWidgets('king of the hill advances to each new challenger', (
     WidgetTester tester,
   ) async {
-    await _openCollectionWithOptions(tester, ['Choice A', 'Choice B', 'Choice C']);
+    await _openCollectionWithOptions(tester, [
+      'Choice A',
+      'Choice B',
+      'Choice C',
+    ]);
     await tester.tap(find.text("I'm in a pickle!"));
     await tester.pumpAndSettle();
     await tester.tap(find.text('King of the hill'));
