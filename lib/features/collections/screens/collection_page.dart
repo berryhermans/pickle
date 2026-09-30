@@ -67,6 +67,39 @@ class _CollectionPageState extends State<CollectionPage> {
     await widget.onChanged();
   }
 
+  Future<void> _editName() async {
+    var editedName = widget.collection.name;
+    final result = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Edit collection name'),
+        content: TextFormField(
+          initialValue: editedName,
+          autofocus: true,
+          textCapitalization: TextCapitalization.sentences,
+          textInputAction: TextInputAction.done,
+          onChanged: (value) => editedName = value,
+          onFieldSubmitted: (value) => Navigator.pop(dialogContext, value),
+          decoration: const InputDecoration(labelText: 'Collection name'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, editedName),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    final name = result?.trim();
+    if (!mounted || name == null || name.isEmpty) return;
+    setState(() => widget.collection.name = name);
+    await widget.onChanged();
+  }
+
   Future<void> _chooseMethod() async {
     if (widget.collection.items.isEmpty) return;
     final method = await showModalBottomSheet<PickMethod>(
@@ -211,7 +244,28 @@ class _CollectionPageState extends State<CollectionPage> {
         _method == PickMethod.tournament || _method == PickMethod.kingOfTheHill;
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.collection.name),
+        title: Tooltip(
+          message: 'Edit collection name',
+          child: InkWell(
+            onTap: _editName,
+            borderRadius: BorderRadius.circular(6),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Flexible(
+                    child: Text(
+                      widget.collection.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 18),

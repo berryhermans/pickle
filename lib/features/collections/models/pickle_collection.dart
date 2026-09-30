@@ -30,7 +30,7 @@ class PickleCollection {
     );
   }
 
-  final String name;
+  String name;
   final CollectionType type;
   final List<String> items;
 

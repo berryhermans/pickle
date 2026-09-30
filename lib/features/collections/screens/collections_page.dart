@@ -63,17 +63,6 @@ class _CollectionsPageState extends State<CollectionsPage> {
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
       title: const _BrandTitle(),
-      actions: [
-        IconButton(
-          tooltip: 'About Pickle',
-          onPressed: () => showAboutDialog(
-            context: context,
-            applicationName: 'Pickle',
-            children: const [Text('A little help choosing.')],
-          ),
-          icon: const Icon(Icons.info_outline),
-        ),
-      ],
     ),
     body: SafeArea(
       child: Column(

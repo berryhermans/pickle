@@ -136,4 +136,22 @@ void main() {
     expect(find.text('Tonight'), findsOneWidget);
     expect(find.textContaining('2 options'), findsOneWidget);
   });
+
+  testWidgets('renaming a collection updates and persists its title', (
+    WidgetTester tester,
+  ) async {
+    await _openCollectionWithOptions(tester, []);
+    await tester.tap(find.text('Tonight'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextFormField), 'Movie night');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Movie night'), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    expect(find.text('Movie night'), findsOneWidget);
+    expect(find.text('Custom  ·  0 options'), findsOneWidget);
+  });
 }
