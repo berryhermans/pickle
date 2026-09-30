@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../app/pickle_theme.dart';
+import '../data/collection_storage.dart';
 import '../models/pickle_collection.dart';
 import 'collection_page.dart';
 import 'new_collection_page.dart';
@@ -14,6 +15,27 @@ class CollectionsPage extends StatefulWidget {
 
 class _CollectionsPageState extends State<CollectionsPage> {
   final List<PickleCollection> _collections = [];
+  final CollectionStorage _storage = CollectionStorage();
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCollections();
+  }
+
+  Future<void> _loadCollections() async {
+    final collections = await _storage.load();
+    if (!mounted) return;
+    setState(() {
+      _collections
+        ..clear()
+        ..addAll(collections);
+      _isLoading = false;
+    });
+  }
+
+  Future<void> _saveCollections() => _storage.save(_collections);
 
   Future<void> _addCollection() async {
     final collection = await Navigator.of(context).push<PickleCollection>(
@@ -21,14 +43,20 @@ class _CollectionsPageState extends State<CollectionsPage> {
     );
     if (!mounted || collection == null) return;
     setState(() => _collections.add(collection));
+    await _saveCollections();
     await _openCollection(collection);
   }
 
   Future<void> _openCollection(PickleCollection collection) async {
     await Navigator.of(context).push<void>(
-      MaterialPageRoute(builder: (_) => CollectionPage(collection: collection)),
+      MaterialPageRoute(
+        builder: (_) =>
+            CollectionPage(collection: collection, onChanged: _saveCollections),
+      ),
     );
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    setState(() {});
+    await _saveCollections();
   }
 
   @override
@@ -51,7 +79,9 @@ class _CollectionsPageState extends State<CollectionsPage> {
       child: Column(
         children: [
           Expanded(
-            child: _collections.isEmpty
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _collections.isEmpty
                 ? const _EmptyCollections()
                 : ListView(
                     padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),

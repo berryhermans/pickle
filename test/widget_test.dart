@@ -7,6 +7,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:pickle/app/pickle_app.dart';
 
@@ -32,6 +33,8 @@ Future<void> _openCollectionWithOptions(
 }
 
 void main() {
+  setUp(() => SharedPreferences.setMockInitialValues({}));
+
   testWidgets('creates a collection and resolves a random pick', (
     WidgetTester tester,
   ) async {
@@ -118,5 +121,19 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Your pickle is solved!'), findsOneWidget);
+  });
+
+  testWidgets('collections and options restore after app recreation', (
+    WidgetTester tester,
+  ) async {
+    await _openCollectionWithOptions(tester, ['Choice A', 'Choice B']);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    await tester.pumpWidget(const PickleApp(key: ValueKey('restarted')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Tonight'), findsOneWidget);
+    expect(find.textContaining('2 options'), findsOneWidget);
   });
 }

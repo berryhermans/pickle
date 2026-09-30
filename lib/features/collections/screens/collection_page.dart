@@ -8,9 +8,14 @@ import '../../picking/widgets/winner_dialog.dart';
 import '../models/pickle_collection.dart';
 
 class CollectionPage extends StatefulWidget {
-  const CollectionPage({super.key, required this.collection});
+  const CollectionPage({
+    super.key,
+    required this.collection,
+    required this.onChanged,
+  });
 
   final PickleCollection collection;
+  final Future<void> Function() onChanged;
 
   @override
   State<CollectionPage> createState() => _CollectionPageState();
@@ -54,6 +59,12 @@ class _CollectionPageState extends State<CollectionPage> {
     final value = item?.trim();
     if (!mounted || value == null || value.isEmpty) return;
     setState(() => widget.collection.items.add(value));
+    await widget.onChanged();
+  }
+
+  Future<void> _removeItem(int index) async {
+    setState(() => widget.collection.items.removeAt(index));
+    await widget.onChanged();
   }
 
   Future<void> _chooseMethod() async {
@@ -246,8 +257,7 @@ class _CollectionPageState extends State<CollectionPage> {
                           trailing: IconButton(
                             tooltip: 'Remove ${items[index]}',
                             icon: const Icon(Icons.close),
-                            onPressed: () =>
-                                setState(() => items.removeAt(index)),
+                            onPressed: () => _removeItem(index),
                           ),
                         ),
                       ),
