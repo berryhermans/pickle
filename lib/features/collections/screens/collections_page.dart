@@ -132,7 +132,12 @@ class _BrandTitle extends StatelessWidget {
           color: PickleColors.lime,
           borderRadius: BorderRadius.circular(11),
         ),
-        child: const Icon(Icons.spa, color: PickleColors.forest, size: 21),
+        child: Image.asset(
+          'assets/pickle-logo.png',
+          width: 34,
+          height: 34,
+          fit: BoxFit.contain,
+        ),
       ),
       const SizedBox(width: 10),
       Text(
