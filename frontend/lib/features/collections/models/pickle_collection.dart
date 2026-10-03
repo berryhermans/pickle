@@ -1,3 +1,5 @@
+import 'collection_item.dart';
+
 enum CollectionType { movie, tv, custom }
 
 extension CollectionTypeLabel on CollectionType {
@@ -12,7 +14,7 @@ class PickleCollection {
   PickleCollection({
     required this.name,
     required this.type,
-    List<String>? items,
+    List<CollectionItem>? items,
   }) : items = items ?? [];
 
   factory PickleCollection.fromJson(Map<String, dynamic> json) {
@@ -26,17 +28,22 @@ class PickleCollection {
     return PickleCollection(
       name: json['name'] as String? ?? '',
       type: type,
-      items: items is List ? items.whereType<String>().toList() : [],
+      items: items is List
+          ? items
+            .map(CollectionItem.fromStorage)
+            .whereType<CollectionItem>()
+            .toList()
+          : [],
     );
   }
 
   String name;
   final CollectionType type;
-  final List<String> items;
+  final List<CollectionItem> items;
 
   Map<String, Object?> toJson() => {
     'name': name,
     'type': type.name,
-    'items': items,
+    'items': items.map((item) => item.toJson()).toList(),
   };
 }

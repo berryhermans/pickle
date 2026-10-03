@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import '../../../app/pickle_theme.dart';
 import '../../picking/models/pick_method.dart';
 import '../../picking/widgets/winner_dialog.dart';
+import '../data/media_search_service.dart';
+import '../models/collection_item.dart';
 import '../models/pickle_collection.dart';
 
 class CollectionPage extends StatefulWidget {
@@ -23,42 +25,184 @@ class CollectionPage extends StatefulWidget {
 
 class _CollectionPageState extends State<CollectionPage> {
   final _random = math.Random();
-  List<String> _players = [];
-  List<String> _roundWinners = [];
-  String? _king;
-  String? _challenger;
+  List<CollectionItem> _players = [];
+  List<CollectionItem> _roundWinners = [];
+  CollectionItem? _king;
+  CollectionItem? _challenger;
   int _matchIndex = 0;
   PickMethod? _method;
 
   Future<void> _addItem() async {
-    var enteredItem = '';
-    final item = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Add an option'),
-        content: TextField(
-          autofocus: true,
-          textCapitalization: TextCapitalization.sentences,
-          textInputAction: TextInputAction.done,
-          onChanged: (value) => enteredItem = value,
-          onSubmitted: (value) => Navigator.pop(dialogContext, value),
-          decoration: const InputDecoration(hintText: 'Name your option'),
+    if (widget.collection.type == CollectionType.custom) {
+      var enteredItem = '';
+      final item = await showDialog<String>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Add an option'),
+          content: TextField(
+            autofocus: true,
+            textCapitalization: TextCapitalization.sentences,
+            textInputAction: TextInputAction.done,
+            onChanged: (value) => enteredItem = value,
+            onSubmitted: (value) => Navigator.pop(dialogContext, value),
+            decoration: const InputDecoration(hintText: 'Name your option'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, enteredItem),
+              child: const Text('Add'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, enteredItem),
-            child: const Text('Add'),
-          ),
-        ],
+      );
+      final value = item?.trim();
+      if (!mounted || value == null || value.isEmpty) return;
+      setState(() => widget.collection.items.add(CollectionItem.manual(value)));
+      await widget.onChanged();
+      return;
+    }
+
+    var query = '';
+    var isSearching = false;
+    var results = <CollectionItem>[];
+
+    final picked = await showDialog<CollectionItem?>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          Future<void> _runSearch(String currentQuery) async {
+            final trimmed = currentQuery.trim();
+            query = trimmed;
+            if (trimmed.isEmpty) {
+              setDialogState(() {
+                isSearching = false;
+                results = const [];
+              });
+              return;
+            }
+
+            setDialogState(() => isSearching = true);
+            final suggestions = await MediaSearchService.search(
+              widget.collection.type,
+              trimmed,
+            );
+            if (!dialogContext.mounted || query != trimmed) return;
+            setDialogState(() {
+              results = suggestions;
+              isSearching = false;
+            });
+          }
+
+          return AlertDialog(
+            title: Text('Add ${widget.collection.type.label.toLowerCase()}'),
+            content: SizedBox(
+              width: 420,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    autofocus: true,
+                    textCapitalization: TextCapitalization.sentences,
+                    textInputAction: TextInputAction.search,
+                    onChanged: _runSearch,
+                    onSubmitted: (value) {
+                      final manual = value.trim();
+                      if (manual.isNotEmpty) {
+                        Navigator.pop(
+                          dialogContext,
+                          CollectionItem.manual(manual),
+                        );
+                      }
+                    },
+                    decoration: InputDecoration(
+                      hintText: 'Search ${widget.collection.type.label} titles',
+                    ),
+                  ),
+                  if (isSearching) ...[
+                    const SizedBox(height: 12),
+                    const LinearProgressIndicator(minHeight: 2),
+                  ],
+                  if (!isSearching && query.isNotEmpty && results.isEmpty) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      'No matches found. Try a different title or add it manually.',
+                      style: TextStyle(color: Colors.blueGrey.shade700),
+                    ),
+                  ],
+                  if (results.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 220),
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: results.length,
+                        separatorBuilder: (_, __) => const Divider(height: 1),
+                        itemBuilder: (listContext, index) {
+                          final suggestion = results[index];
+                          return ListTile(
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                            leading: suggestion.posterUrl != null
+                                ? ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Image.network(
+                                      suggestion.posterUrl!,
+                                      width: 38,
+                                      height: 58,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) => const Icon(
+                                        Icons.image_not_supported_outlined,
+                                        size: 22,
+                                      ),
+                                    ),
+                                  )
+                                : const CircleAvatar(
+                                    child: Icon(Icons.movie_outlined, size: 18),
+                                  ),
+                            title: Text(suggestion.title),
+                            subtitle: suggestion.genres.isNotEmpty
+                                ? Text(suggestion.genres.take(2).join(', '))
+                                : null,
+                            onTap: () =>
+                                Navigator.pop(dialogContext, suggestion),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () {
+                  final manualValue = query.trim();
+                  if (manualValue.isEmpty) return;
+                  Navigator.pop(
+                    dialogContext,
+                    CollectionItem.manual(manualValue),
+                  );
+                },
+                child: const Text('Add manually'),
+              ),
+            ],
+          );
+        },
       ),
     );
-    final value = item?.trim();
-    if (!mounted || value == null || value.isEmpty) return;
-    setState(() => widget.collection.items.add(value));
+
+    final selected = picked;
+    if (!mounted || selected == null) return;
+    setState(() => widget.collection.items.add(selected));
     await widget.onChanged();
   }
 
@@ -173,7 +317,8 @@ class _CollectionPageState extends State<CollectionPage> {
   };
 
   void _startTournament() {
-    final shuffled = List<String>.of(widget.collection.items)..shuffle(_random);
+    final shuffled = List<CollectionItem>.of(widget.collection.items)
+      ..shuffle(_random);
     var bracketSize = 1;
     while (bracketSize * 2 <= shuffled.length) {
       bracketSize *= 2;
@@ -185,14 +330,15 @@ class _CollectionPageState extends State<CollectionPage> {
   }
 
   void _startKingOfTheHill() {
-    final options = List<String>.of(widget.collection.items)..shuffle(_random);
+    final options = List<CollectionItem>.of(widget.collection.items)
+      ..shuffle(_random);
     _king = options.removeLast();
     _players = options;
     _challenger = _players.removeLast();
     setState(() {});
   }
 
-  void _selectOption(String option) {
+  void _selectOption(CollectionItem option) {
     if (_method == PickMethod.tournament) {
       _roundWinners.add(option);
       _matchIndex++;
@@ -220,11 +366,11 @@ class _CollectionPageState extends State<CollectionPage> {
     }
   }
 
-  Future<void> _declareWinner(String winner) async {
+  Future<void> _declareWinner(CollectionItem winner) async {
     await showDialog<void>(
       context: context,
       barrierDismissible: true,
-      builder: (context) => WinnerDialog(winner: winner),
+      builder: (context) => WinnerDialog(winner: winner.title),
     );
     if (!mounted) return;
     setState(() {
@@ -305,11 +451,11 @@ class _CollectionPageState extends State<CollectionPage> {
                             child: Text('${index + 1}'),
                           ),
                           title: Text(
-                            items[index],
+                            items[index].title,
                             style: const TextStyle(fontWeight: FontWeight.w700),
                           ),
                           trailing: IconButton(
-                            tooltip: 'Remove ${items[index]}',
+                            tooltip: 'Remove ${items[index].title}',
                             icon: const Icon(Icons.close),
                             onPressed: () => _removeItem(index),
                           ),
@@ -428,7 +574,7 @@ class _CollectionPageState extends State<CollectionPage> {
             ),
           ],
           const SizedBox(height: 30),
-          _OptionButton(label: left, onTap: () => _selectOption(left)),
+          _OptionButton(label: left.title, onTap: () => _selectOption(left)),
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 13),
             child: Text(
@@ -440,7 +586,7 @@ class _CollectionPageState extends State<CollectionPage> {
               ),
             ),
           ),
-          _OptionButton(label: right, onTap: () => _selectOption(right)),
+          _OptionButton(label: right.title, onTap: () => _selectOption(right)),
           const SizedBox(height: 22),
           TextButton.icon(
             onPressed: () => setState(() {
