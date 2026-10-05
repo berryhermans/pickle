@@ -30,3 +30,12 @@ The backend exposes the search endpoint at:
 ```text
 http://localhost:8080/search?type=movie&query=arrival
 ```
+
+## Deploy the backend to Railway
+
+1. Create a Railway project and deploy this GitHub repository as a service.
+2. In the service settings, set the root directory to `/backend`.
+3. Railway detects the Node.js app from `package.json`, installs its dependencies, and runs `npm start`.
+4. Set the service healthcheck path to `/health` and generate a public domain.
+
+Railway provides the `PORT` environment variable automatically. The backend binds to that port and listens on `0.0.0.0`. After deployment, verify `/health` on the generated domain before using `/search`.

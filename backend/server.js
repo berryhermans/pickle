@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 
 const app = express();
-const PORT = process.env.PORT || 8080;
+const PORT = Number(process.env.PORT) || 8080;
 
 app.use(cors());
 app.use(express.json());
@@ -88,6 +88,19 @@ const tvShows = [
   },
 ];
 
-app.listen(PORT, '0.0.0.0', () => {
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`Pickle API running on http://0.0.0.0:${PORT}`);
 });
+
+function shutdown(signal) {
+  console.log(`${signal} received; closing the HTTP server`);
+  server.close((error) => {
+    if (error) {
+      console.error('Failed to close the HTTP server cleanly:', error);
+      process.exitCode = 1;
+    }
+  });
+}
+
+process.once('SIGTERM', () => shutdown('SIGTERM'));
+process.once('SIGINT', () => shutdown('SIGINT'));

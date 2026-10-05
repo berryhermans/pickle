@@ -1,6 +1,6 @@
 {
   "name": "pickle-backend",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "Express API for Pickle media lookups",
   "main": "server.js",
   "scripts": {
@@ -14,6 +14,9 @@
     "api"
   ],
   "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^4.21.2"
