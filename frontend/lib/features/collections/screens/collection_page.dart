@@ -32,6 +32,7 @@ class _CollectionPageState extends State<CollectionPage> {
   List<CollectionItem> _roundWinners = [];
   CollectionItem? _king;
   CollectionItem? _challenger;
+  bool _kingOnLeft = true;
   int _matchIndex = 0;
   PickMethod? _method;
 
@@ -322,6 +323,7 @@ class _CollectionPageState extends State<CollectionPage> {
     final options = List<CollectionItem>.of(widget.collection.items)
       ..shuffle(_random);
     _king = options.removeLast();
+    _kingOnLeft = true;
     _players = options;
     _challenger = _players.removeLast();
     setState(() {});
@@ -345,6 +347,8 @@ class _CollectionPageState extends State<CollectionPage> {
     }
 
     if (_method == PickMethod.kingOfTheHill) {
+      final leftOption = _kingOnLeft ? _king : _challenger;
+      _kingOnLeft = identical(option, leftOption);
       _king = option;
       if (_players.isEmpty) {
         _declareWinner(_king!);
@@ -503,8 +507,16 @@ class _CollectionPageState extends State<CollectionPage> {
 
   Widget _buildMatch() {
     final isTournament = _method == PickMethod.tournament;
-    final left = isTournament ? _players[_matchIndex * 2] : _king!;
-    final right = isTournament ? _players[_matchIndex * 2 + 1] : _challenger!;
+    final left = isTournament
+        ? _players[_matchIndex * 2]
+        : _kingOnLeft
+        ? _king!
+        : _challenger!;
+    final right = isTournament
+        ? _players[_matchIndex * 2 + 1]
+        : _kingOnLeft
+        ? _challenger!
+        : _king!;
     final matchNumber = isTournament ? _matchIndex + 1 : null;
     return Padding(
       padding: const EdgeInsets.all(20),

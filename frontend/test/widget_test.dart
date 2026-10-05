@@ -101,26 +101,38 @@ void main() {
     expect(find.text('Your pickle is solved!'), findsOneWidget);
   });
 
-  testWidgets('king of the hill advances to each new challenger', (
+  testWidgets('king of the hill preserves the winner position', (
     WidgetTester tester,
   ) async {
     await _openCollectionWithOptions(tester, [
       'Choice A',
       'Choice B',
       'Choice C',
+      'Choice D',
+      'Choice E',
     ]);
     await tester.tap(find.text("I'm in a pickle!"));
     await tester.pumpAndSettle();
     await tester.tap(find.text('King of the hill'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byType(FilledButton).first);
+    String optionLabel(int index) =>
+        (tester.widget<FilledButton>(find.byType(FilledButton).at(index)).child
+                as Text)
+            .data!;
+
+    final firstRightWinner = optionLabel(1);
+    await tester.tap(find.byType(FilledButton).at(1));
     await tester.pumpAndSettle();
     expect(find.text('Who stays on top?'), findsOneWidget);
+    expect(optionLabel(1), firstRightWinner);
+
+    final nextLeftWinner = optionLabel(0);
     await tester.tap(find.byType(FilledButton).first);
     await tester.pumpAndSettle();
+    expect(optionLabel(0), nextLeftWinner);
 
-    expect(find.text('Your pickle is solved!'), findsOneWidget);
+    expect(find.text('Who stays on top?'), findsOneWidget);
   });
 
   testWidgets('collections and options restore after app recreation', (
