@@ -38,9 +38,10 @@ class _CollectionsPageState extends State<CollectionsPage> {
   Future<void> _saveCollections() => _storage.save(_collections);
 
   Future<void> _addCollection() async {
-    final collection = await Navigator.of(context).push<PickleCollection>(
+    final result = await Navigator.of(context).push<CollectionEditorResult>(
       MaterialPageRoute(builder: (_) => const NewCollectionPage()),
     );
+    final collection = result?.collection;
     if (!mounted || collection == null) return;
     setState(() => _collections.add(collection));
     await _saveCollections();
@@ -50,8 +51,11 @@ class _CollectionsPageState extends State<CollectionsPage> {
   Future<void> _openCollection(PickleCollection collection) async {
     await Navigator.of(context).push<void>(
       MaterialPageRoute(
-        builder: (_) =>
-            CollectionPage(collection: collection, onChanged: _saveCollections),
+        builder: (_) => CollectionPage(
+          collection: collection,
+          onChanged: _saveCollections,
+          onDeleted: _deleteCollection,
+        ),
       ),
     );
     if (!mounted) return;
@@ -59,11 +63,14 @@ class _CollectionsPageState extends State<CollectionsPage> {
     await _saveCollections();
   }
 
+  Future<void> _deleteCollection(PickleCollection collection) async {
+    setState(() => _collections.remove(collection));
+    await _saveCollections();
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: const _BrandTitle(),
-    ),
+    appBar: AppBar(title: const _BrandTitle()),
     body: SafeArea(
       child: Column(
         children: [
@@ -247,7 +254,6 @@ class _CollectionRow extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right, color: PickleColors.leaf),
             ],
           ),
         ),

@@ -137,14 +137,17 @@ void main() {
     expect(find.textContaining('2 options'), findsOneWidget);
   });
 
-  testWidgets('renaming a collection updates and persists its title', (
+  testWidgets('editing a collection updates and persists its title', (
     WidgetTester tester,
   ) async {
     await _openCollectionWithOptions(tester, []);
-    await tester.tap(find.text('Tonight'));
+    await tester.tap(find.byTooltip('Edit collection'));
     await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextFormField), 'Movie night');
-    await tester.tap(find.text('Save'));
+    expect(find.text('Tonight'), findsOneWidget);
+    expect(find.text('Custom'), findsOneWidget);
+    expect(find.byType(SegmentedButton), findsNothing);
+    await tester.enterText(find.byType(TextField), 'Movie night');
+    await tester.tap(find.text('Done'));
     await tester.pumpAndSettle();
 
     expect(find.text('Movie night'), findsOneWidget);
@@ -153,5 +156,29 @@ void main() {
 
     expect(find.text('Movie night'), findsOneWidget);
     expect(find.text('Custom  ·  0 options'), findsOneWidget);
+  });
+
+  testWidgets('deleting a collection requires confirmation', (
+    WidgetTester tester,
+  ) async {
+    await _openCollectionWithOptions(tester, []);
+    await tester.tap(find.byTooltip('Edit collection'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Delete collection'));
+    await tester.pumpAndSettle();
+    expect(find.text('Delete collection?'), findsOneWidget);
+
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(find.text('Edit collection'), findsOneWidget);
+
+    await tester.tap(find.text('Delete collection'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Tonight'), findsNothing);
+    expect(find.text('A list for every little pickle.'), findsOneWidget);
   });
 }

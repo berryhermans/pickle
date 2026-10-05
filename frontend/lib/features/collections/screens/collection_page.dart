@@ -8,16 +8,19 @@ import '../../picking/widgets/winner_dialog.dart';
 import '../data/media_search_service.dart';
 import '../models/collection_item.dart';
 import '../models/pickle_collection.dart';
+import 'new_collection_page.dart';
 
 class CollectionPage extends StatefulWidget {
   const CollectionPage({
     super.key,
     required this.collection,
     required this.onChanged,
+    required this.onDeleted,
   });
 
   final PickleCollection collection;
   final Future<void> Function() onChanged;
+  final Future<void> Function(PickleCollection collection) onDeleted;
 
   @override
   State<CollectionPage> createState() => _CollectionPageState();
@@ -74,7 +77,7 @@ class _CollectionPageState extends State<CollectionPage> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) {
-          Future<void> _runSearch(String currentQuery) async {
+          Future<void> runSearch(String currentQuery) async {
             final trimmed = currentQuery.trim();
             query = trimmed;
             if (trimmed.isEmpty) {
@@ -109,7 +112,7 @@ class _CollectionPageState extends State<CollectionPage> {
                     autofocus: true,
                     textCapitalization: TextCapitalization.sentences,
                     textInputAction: TextInputAction.search,
-                    onChanged: _runSearch,
+                    onChanged: runSearch,
                     onSubmitted: (value) {
                       final manual = value.trim();
                       if (manual.isNotEmpty) {
@@ -141,7 +144,7 @@ class _CollectionPageState extends State<CollectionPage> {
                       child: ListView.separated(
                         shrinkWrap: true,
                         itemCount: results.length,
-                        separatorBuilder: (_, __) => const Divider(height: 1),
+                        separatorBuilder: (_, _) => const Divider(height: 1),
                         itemBuilder: (listContext, index) {
                           final suggestion = results[index];
                           return ListTile(
@@ -155,7 +158,7 @@ class _CollectionPageState extends State<CollectionPage> {
                                       width: 38,
                                       height: 58,
                                       fit: BoxFit.cover,
-                                      errorBuilder: (_, __, ___) => const Icon(
+                                      errorBuilder: (_, _, _) => const Icon(
                                         Icons.image_not_supported_outlined,
                                         size: 22,
                                       ),
@@ -211,36 +214,22 @@ class _CollectionPageState extends State<CollectionPage> {
     await widget.onChanged();
   }
 
-  Future<void> _editName() async {
-    var editedName = widget.collection.name;
-    final result = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Edit collection name'),
-        content: TextFormField(
-          initialValue: editedName,
-          autofocus: true,
-          textCapitalization: TextCapitalization.sentences,
-          textInputAction: TextInputAction.done,
-          onChanged: (value) => editedName = value,
-          onFieldSubmitted: (value) => Navigator.pop(dialogContext, value),
-          decoration: const InputDecoration(labelText: 'Collection name'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, editedName),
-            child: const Text('Save'),
-          ),
-        ],
+  Future<void> _editCollection() async {
+    final result = await Navigator.of(context).push<CollectionEditorResult>(
+      MaterialPageRoute(
+        builder: (_) => NewCollectionPage(collection: widget.collection),
       ),
     );
-    final name = result?.trim();
-    if (!mounted || name == null || name.isEmpty) return;
-    setState(() => widget.collection.name = name);
+    if (!mounted || result == null) return;
+    if (result.deleted) {
+      await widget.onDeleted(widget.collection);
+      if (mounted) Navigator.of(context).pop();
+      return;
+    }
+
+    final updatedCollection = result.collection;
+    if (updatedCollection == null) return;
+    setState(() => widget.collection.name = updatedCollection.name);
     await widget.onChanged();
   }
 
@@ -390,42 +379,16 @@ class _CollectionPageState extends State<CollectionPage> {
         _method == PickMethod.tournament || _method == PickMethod.kingOfTheHill;
     return Scaffold(
       appBar: AppBar(
-        title: Tooltip(
-          message: 'Edit collection name',
-          child: InkWell(
-            onTap: _editName,
-            borderRadius: BorderRadius.circular(6),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Flexible(
-                    child: Text(
-                      widget.collection.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+        title: Text(
+          widget.collection.name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
         actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 18),
-            child: Center(
-              child: Text(
-                widget.collection.type.label.toUpperCase(),
-                style: const TextStyle(
-                  color: PickleColors.leaf,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1,
-                ),
-              ),
-            ),
+          IconButton(
+            tooltip: 'Edit collection',
+            onPressed: _editCollection,
+            icon: const Icon(Icons.edit_outlined),
           ),
         ],
       ),
