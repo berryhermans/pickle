@@ -14,8 +14,23 @@ Pickle is a Flutter app for picking between a list of discreet options.
 ```bash
 cd frontend
 flutter pub get
-flutter run
+flutter run --dart-define=APP_FLAVOR=local
 ```
+
+The frontend has `local`, `develop`, and `production` compile-time flavors. Set `BACKEND_URL` for develop and production builds; those flavors reject missing or loopback URLs. Use the backend origin without `/search`:
+
+```bash
+flutter run --dart-define=APP_FLAVOR=develop --dart-define=BACKEND_URL=https://<develop-api-domain>
+flutter build appbundle --dart-define=APP_FLAVOR=production --dart-define=BACKEND_URL=https://<production-api-domain>
+```
+
+For Android emulators, override the local backend URL because emulator `localhost` is not the development machine:
+
+```bash
+flutter run --dart-define=APP_FLAVOR=local --dart-define=BACKEND_URL=http://10.0.2.2:8080
+```
+
+For a physical device, use the development machine's LAN address as `BACKEND_URL`.
 
 ### Backend
 

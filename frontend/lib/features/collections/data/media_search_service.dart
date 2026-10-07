@@ -2,12 +2,11 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../../../app/app_config.dart';
 import '../models/collection_item.dart';
 import '../models/pickle_collection.dart';
 
 class MediaSearchService {
-  static const String _endpoint = 'http://localhost:8080/search';
-
   static List<CollectionItem> parseResults({
     required CollectionType type,
     required Object payload,
@@ -69,8 +68,9 @@ class MediaSearchService {
     if (trimmed.isEmpty) return const [];
 
     try {
-      final uri = Uri.parse(_endpoint)
-          .replace(queryParameters: {'type': type.name, 'query': trimmed});
+      final uri = AppConfig.current.searchEndpoint.replace(
+        queryParameters: {'type': type.name, 'query': trimmed},
+      );
       final response = await http.get(uri).timeout(const Duration(seconds: 6));
       if (response.statusCode != 200) return const [];
 
