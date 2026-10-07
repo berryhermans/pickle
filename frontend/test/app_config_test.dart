@@ -3,43 +3,30 @@ import 'package:pickle/app/app_config.dart';
 
 void main() {
   test('local flavor defaults to the local backend', () {
-    final config = AppConfig.fromValues(flavorName: 'local');
+    final config = AppConfig.fromFlavorName('local');
 
-    expect(config.flavor, AppFlavor.local);
-    expect(config.searchEndpoint, Uri.parse('http://localhost:8080/search'));
+    expect(config.backendBaseUrl, 'http://localhost:8080');
   });
 
-  test('develop flavor uses its configured backend', () {
-    final config = AppConfig.fromValues(
-      flavorName: 'develop',
-      backendUrl: 'https://pickle-api-develop.example.com/',
-    );
+  test('develop flavor uses the develop backend', () {
+    final config = AppConfig.fromFlavorName('develop');
 
-    expect(config.flavor, AppFlavor.develop);
-    expect(
-      config.searchEndpoint,
-      Uri.parse('https://pickle-api-develop.example.com/search'),
-    );
+    expect(config.backendBaseUrl, 'https://pickle-dev.up.railway.app');
   });
 
-  test('non-local flavors require a non-loopback backend URL', () {
-    expect(
-      () => AppConfig.fromValues(flavorName: 'production'),
-      throwsStateError,
-    );
-    expect(
-      () => AppConfig.fromValues(
-        flavorName: 'production',
-        backendUrl: 'http://localhost:8080',
-      ),
-      throwsArgumentError,
-    );
+  test('production flavor uses the production backend', () {
+    final config = AppConfig.fromFlavorName('production');
+
+    expect(config.backendBaseUrl, 'https://pickle-prod.up.railway.app');
   });
 
   test('unknown flavors are rejected', () {
-    expect(
-      () => AppConfig.fromValues(flavorName: 'staging'),
-      throwsArgumentError,
-    );
+    expect(() => AppConfig.fromFlavorName('staging'), throwsArgumentError);
+  });
+
+  test('AppConfig exposes the active flavor directly', () {
+    expect(AppConfig.flavor, AppFlavor.local);
+    expect(AppConfig.backendBaseUrl, Uri.parse('http://localhost:8080'));
+    expect(AppConfig.searchEndpoint, Uri.parse('http://localhost:8080/search'));
   });
 }

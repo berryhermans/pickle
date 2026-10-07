@@ -68,7 +68,7 @@ class MediaSearchService {
     if (trimmed.isEmpty) return const [];
 
     try {
-      final uri = AppConfig.current.searchEndpoint.replace(
+      final uri = AppConfig.searchEndpoint.replace(
         queryParameters: {'type': type.name, 'query': trimmed},
       );
       final response = await http.get(uri).timeout(const Duration(seconds: 6));

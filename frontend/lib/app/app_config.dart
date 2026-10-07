@@ -1,59 +1,53 @@
+import 'config/app_config_values.dart';
+import 'config/default_config.dart';
+import 'config/develop_config.dart';
+import 'config/local_config.dart';
+import 'config/production_config.dart';
+
 enum AppFlavor { local, develop, production }
 
 class AppConfig {
-  const AppConfig._({required this.flavor, required this.backendBaseUrl});
+  const AppConfig._();
 
   static const _flavorName = String.fromEnvironment(
     'APP_FLAVOR',
     defaultValue: 'local',
   );
-  static const _backendUrl = String.fromEnvironment('BACKEND_URL');
+  static const _flavorOverrides = <AppFlavor, AppConfigOverrides>{
+    AppFlavor.local: localConfigOverrides,
+    AppFlavor.develop: developConfigOverrides,
+    AppFlavor.production: productionConfigOverrides,
+  };
 
-  static final current = fromValues(
-    flavorName: _flavorName,
-    backendUrl: _backendUrl,
-  );
+  static final flavor = _flavorFromName(_flavorName);
+  static final values = _valuesForFlavor(flavor);
 
-  final AppFlavor flavor;
-  final Uri backendBaseUrl;
+  static Uri get backendBaseUrl => Uri.parse(values.backendBaseUrl);
 
-  static AppConfig fromValues({
-    required String flavorName,
-    String backendUrl = '',
-  }) {
-    final flavor = switch (flavorName) {
-      'local' => AppFlavor.local,
-      'develop' => AppFlavor.develop,
-      'production' => AppFlavor.production,
-      _ => throw ArgumentError.value(
-        flavorName,
-        'flavorName',
-        'Unknown flavor',
-      ),
-    };
-    final url = backendUrl.trim().isNotEmpty
-        ? Uri.tryParse(backendUrl.trim())
-        : flavor == AppFlavor.local
-        ? Uri.parse('http://localhost:8080')
-        : null;
-
-    if (url == null) {
-      throw StateError(
-        'Set BACKEND_URL when building the ${flavor.name} flavor.',
-      );
-    }
-
-    final config = AppConfig._(flavor: flavor, backendBaseUrl: url);
-    config.validate();
-    return config;
-  }
-
-  Uri get searchEndpoint {
+  static Uri get searchEndpoint {
     final baseUrl = backendBaseUrl.toString().replaceFirst(RegExp(r'/+$'), '');
     return Uri.parse('$baseUrl/search');
   }
 
-  void validate() {
+  static AppConfigValues fromFlavorName(String flavorName) =>
+      _valuesForFlavor(_flavorFromName(flavorName));
+
+  static AppFlavor _flavorFromName(String flavorName) => switch (flavorName) {
+    'local' => AppFlavor.local,
+    'develop' => AppFlavor.develop,
+    'production' => AppFlavor.production,
+    _ => throw ArgumentError.value(flavorName, 'flavorName', 'Unknown flavor'),
+  };
+
+  static AppConfigValues _valuesForFlavor(AppFlavor flavor) {
+    final values = defaultConfig.apply(_flavorOverrides[flavor]!);
+    _validate(flavor, Uri.parse(values.backendBaseUrl));
+    return values;
+  }
+
+  static void validate() => _validate(flavor, backendBaseUrl);
+
+  static void _validate(AppFlavor flavor, Uri backendBaseUrl) {
     if (!backendBaseUrl.hasAuthority ||
         !{'http', 'https'}.contains(backendBaseUrl.scheme) ||
         backendBaseUrl.host.isEmpty) {

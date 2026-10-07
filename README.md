@@ -17,20 +17,14 @@ flutter pub get
 flutter run --dart-define=APP_FLAVOR=local
 ```
 
-The frontend has `local`, `develop`, and `production` compile-time flavors. Set `BACKEND_URL` for develop and production builds; those flavors reject missing or loopback URLs. Use the backend origin without `/search`:
+The frontend has `local`, `develop`, and `production` compile-time flavors. Each flavor selects its backend URL from `frontend/lib/app/app_config.dart`; only `APP_FLAVOR` is needed when running or building:
 
 ```bash
-flutter run --dart-define=APP_FLAVOR=develop --dart-define=BACKEND_URL=https://<develop-api-domain>
-flutter build appbundle --dart-define=APP_FLAVOR=production --dart-define=BACKEND_URL=https://<production-api-domain>
+flutter run --dart-define=APP_FLAVOR=develop
+flutter build appbundle --dart-define=APP_FLAVOR=production
 ```
 
-For Android emulators, override the local backend URL because emulator `localhost` is not the development machine:
-
-```bash
-flutter run --dart-define=APP_FLAVOR=local --dart-define=BACKEND_URL=http://10.0.2.2:8080
-```
-
-For a physical device, use the development machine's LAN address as `BACKEND_URL`.
+The local flavor defaults to `http://localhost:8080`. For Android emulators or physical devices, change the local URL in `app_config.dart` to the appropriate host address.
 
 ### Backend
 
