@@ -11,7 +11,7 @@ class AppConfig {
 
   static const _flavorName = String.fromEnvironment(
     'APP_FLAVOR',
-    defaultValue: 'local',
+    defaultValue: 'develop',
   );
   static const _flavorOverrides = <AppFlavor, AppConfigOverrides>{
     AppFlavor.local: localConfigOverrides,
