@@ -34,6 +34,8 @@ npm install
 npm start
 ```
 
+The backend loads `TMDB_API_KEY` from `backend/.env` locally. `.env` is git-ignored, and `.env.example` contains a placeholder for other developers. For Railway, add `TMDB_API_KEY` as a service variable instead of uploading an env file. Movie and TV searches use TMDB's respective search endpoints.
+
 The backend exposes the search endpoint at:
 
 ```text
