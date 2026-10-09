@@ -1,4 +1,4 @@
-enum CollectionItemSource { manual, tmdb, tvdb }
+enum CollectionItemSource { manual, omdb }
 
 class CollectionItem {
   const CollectionItem({

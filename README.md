@@ -34,7 +34,9 @@ npm install
 npm start
 ```
 
-The backend loads `TMDB_API_KEY` from `backend/.env` locally. `.env` is git-ignored, and `.env.example` contains a placeholder for other developers. For Railway, add `TMDB_API_KEY` as a service variable instead of uploading an env file. Movie and TV searches use TMDB's respective search endpoints.
+The backend loads `OMDB_API_KEY` from `backend/.env` locally. `.env` is git-ignored, and `.env.example` contains a placeholder for other developers. For Railway, add `OMDB_API_KEY` as a service variable instead of uploading an env file. Movie and TV searches use OMDb's movie and series search types.
+
+Backend code is organized under `backend/src`: `server.js` starts the HTTP server, `app.js` assembles middleware and routes, `routes/` composes endpoint routers, `endpoints/` handles HTTP requests and validation, `services/` integrates with OMDb, and `middleware/` contains shared request/error handling.
 
 The backend exposes the search endpoint at:
 

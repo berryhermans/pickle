@@ -23,8 +23,7 @@ class MediaSearchService {
 
   static CollectionItemSource _sourceForType(CollectionType type) =>
       switch (type) {
-        CollectionType.movie => CollectionItemSource.tmdb,
-        CollectionType.tv => CollectionItemSource.tvdb,
+        CollectionType.movie || CollectionType.tv => CollectionItemSource.omdb,
         CollectionType.custom => CollectionItemSource.manual,
       };
 
