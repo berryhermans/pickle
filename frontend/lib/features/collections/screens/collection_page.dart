@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -72,137 +73,186 @@ class _CollectionPageState extends State<CollectionPage> {
 
     var query = '';
     var isSearching = false;
+    var isDebouncing = false;
     var results = <CollectionItem>[];
+    Timer? debounceTimer;
 
-    final picked = await showDialog<CollectionItem?>(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          Future<void> runSearch(String currentQuery) async {
-            final trimmed = currentQuery.trim();
-            query = trimmed;
-            if (trimmed.isEmpty) {
+    CollectionItem? picked;
+    try {
+      picked = await showDialog<CollectionItem?>(
+        context: context,
+        builder: (dialogContext) => StatefulBuilder(
+          builder: (context, setDialogState) {
+            Future<void> runSearch(String currentQuery) async {
               setDialogState(() {
-                isSearching = false;
-                results = const [];
+                isDebouncing = false;
+                isSearching = true;
               });
-              return;
+              final suggestions = await MediaSearchService.search(
+                widget.collection.type,
+                currentQuery,
+              );
+              if (!dialogContext.mounted || query != currentQuery) return;
+              setDialogState(() {
+                results = suggestions;
+                isSearching = false;
+              });
             }
 
-            setDialogState(() => isSearching = true);
-            final suggestions = await MediaSearchService.search(
-              widget.collection.type,
-              trimmed,
-            );
-            if (!dialogContext.mounted || query != trimmed) return;
-            setDialogState(() {
-              results = suggestions;
-              isSearching = false;
-            });
-          }
+            void scheduleSearch(String currentQuery) {
+              debounceTimer?.cancel();
+              final trimmed = currentQuery.trim();
+              query = trimmed;
+              if (trimmed.isEmpty) {
+                setDialogState(() {
+                  isSearching = false;
+                  isDebouncing = false;
+                  results = const [];
+                });
+                return;
+              }
 
-          return AlertDialog(
-            title: Text('Add ${widget.collection.type.label.toLowerCase()}'),
-            content: SizedBox(
-              width: 420,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  TextField(
-                    autofocus: true,
-                    textCapitalization: TextCapitalization.sentences,
-                    textInputAction: TextInputAction.search,
-                    onChanged: runSearch,
-                    onSubmitted: (value) {
-                      final manual = value.trim();
-                      if (manual.isNotEmpty) {
-                        Navigator.pop(
-                          dialogContext,
-                          CollectionItem.manual(manual),
-                        );
-                      }
-                    },
-                    decoration: InputDecoration(
-                      hintText: 'Search ${widget.collection.type.label} titles',
-                    ),
-                  ),
-                  if (isSearching) ...[
-                    const SizedBox(height: 12),
-                    const LinearProgressIndicator(minHeight: 2),
-                  ],
-                  if (!isSearching && query.isNotEmpty && results.isEmpty) ...[
-                    const SizedBox(height: 12),
-                    Text(
-                      'No matches found. Try a different title or add it manually.',
-                      style: TextStyle(color: Colors.blueGrey.shade700),
-                    ),
-                  ],
-                  if (results.isNotEmpty) ...[
-                    const SizedBox(height: 12),
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(maxHeight: 220),
-                      child: ListView.separated(
-                        shrinkWrap: true,
-                        itemCount: results.length,
-                        separatorBuilder: (_, _) => const Divider(height: 1),
-                        itemBuilder: (listContext, index) {
-                          final suggestion = results[index];
-                          return ListTile(
-                            dense: true,
-                            contentPadding: EdgeInsets.zero,
-                            leading: suggestion.posterUrl != null
-                                ? ClipRRect(
-                                    borderRadius: BorderRadius.circular(8),
-                                    child: Image.network(
-                                      suggestion.posterUrl!,
-                                      width: 38,
-                                      height: 58,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (_, _, _) => const Icon(
-                                        Icons.image_not_supported_outlined,
-                                        size: 22,
-                                      ),
-                                    ),
-                                  )
-                                : const CircleAvatar(
-                                    child: Icon(Icons.movie_outlined, size: 18),
-                                  ),
-                            title: Text(suggestion.title),
-                            subtitle: suggestion.genres.isNotEmpty
-                                ? Text(suggestion.genres.take(2).join(', '))
-                                : null,
-                            onTap: () =>
-                                Navigator.pop(dialogContext, suggestion),
+              setDialogState(() {
+                isSearching = false;
+                isDebouncing = true;
+                results = const [];
+              });
+              debounceTimer = Timer(const Duration(milliseconds: 500), () {
+                unawaited(runSearch(trimmed));
+              });
+            }
+
+            return AlertDialog(
+              title: Text('Add ${widget.collection.type.label.toLowerCase()}'),
+              content: SizedBox(
+                width: 420,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextField(
+                      autofocus: true,
+                      textCapitalization: TextCapitalization.sentences,
+                      textInputAction: TextInputAction.search,
+                      onChanged: scheduleSearch,
+                      onSubmitted: (value) {
+                        final manual = value.trim();
+                        if (manual.isNotEmpty) {
+                          Navigator.pop(
+                            dialogContext,
+                            CollectionItem.manual(manual),
                           );
-                        },
+                        }
+                      },
+                      decoration: InputDecoration(
+                        hintText:
+                            'Search ${widget.collection.type.label} titles',
+                      ),
+                    ),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(minHeight: 64),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (isSearching) ...[
+                            const SizedBox(height: 12),
+                            const LinearProgressIndicator(minHeight: 2),
+                          ],
+                          if (!isSearching &&
+                              !isDebouncing &&
+                              query.isNotEmpty &&
+                              results.isEmpty) ...[
+                            const SizedBox(height: 12),
+                            Text(
+                              'No matches found. Try a different title or add it manually.',
+                              style: TextStyle(color: Colors.blueGrey.shade700),
+                            ),
+                          ],
+                          if (results.isNotEmpty) ...[
+                            const SizedBox(height: 12),
+                            ConstrainedBox(
+                              constraints: const BoxConstraints(maxHeight: 220),
+                              child: ListView.separated(
+                                shrinkWrap: true,
+                                itemCount: results.length,
+                                separatorBuilder: (_, _) =>
+                                    const Divider(height: 1),
+                                itemBuilder: (listContext, index) {
+                                  final suggestion = results[index];
+                                  return ListTile(
+                                    dense: true,
+                                    contentPadding: EdgeInsets.zero,
+                                    leading: suggestion.posterUrl != null
+                                        ? ClipRRect(
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
+                                            child: Image.network(
+                                              suggestion.posterUrl!,
+                                              width: 38,
+                                              height: 58,
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (_, _, _) => const Icon(
+                                                Icons
+                                                    .image_not_supported_outlined,
+                                                size: 22,
+                                              ),
+                                            ),
+                                          )
+                                        : const CircleAvatar(
+                                            child: Icon(
+                                              Icons.movie_outlined,
+                                              size: 18,
+                                            ),
+                                          ),
+                                    title: Text(suggestion.title),
+                                    subtitle: suggestion.genres.isNotEmpty
+                                        ? Text(
+                                            suggestion.genres
+                                                .take(2)
+                                                .join(', '),
+                                          )
+                                        : null,
+                                    onTap: () => Navigator.pop(
+                                      dialogContext,
+                                      suggestion,
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
                   ],
-                ],
+                ),
               ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(dialogContext),
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                onPressed: () {
-                  final manualValue = query.trim();
-                  if (manualValue.isEmpty) return;
-                  Navigator.pop(
-                    dialogContext,
-                    CollectionItem.manual(manualValue),
-                  );
-                },
-                child: const Text('Add manually'),
-              ),
-            ],
-          );
-        },
-      ),
-    );
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () {
+                    final manualValue = query.trim();
+                    if (manualValue.isEmpty) return;
+                    Navigator.pop(
+                      dialogContext,
+                      CollectionItem.manual(manualValue),
+                    );
+                  },
+                  child: const Text('Add manually'),
+                ),
+              ],
+            );
+          },
+        ),
+      );
+    } finally {
+      debounceTimer?.cancel();
+    }
 
     final selected = picked;
     if (!mounted || selected == null) return;
