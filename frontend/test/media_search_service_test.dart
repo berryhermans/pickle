@@ -22,7 +22,7 @@ void main() {
 
       expect(items, hasLength(1));
       expect(items.first.title, 'Arrival');
-      expect(items.first.source, CollectionItemSource.tmdb);
+      expect(items.first.source, CollectionItemSource.omdb);
       expect(items.first.providerId, '42');
       expect(items.first.durationMinutes, 116);
       expect(items.first.genres, ['Sci-Fi', 'Drama']);

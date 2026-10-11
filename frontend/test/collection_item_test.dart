@@ -5,7 +5,7 @@ void main() {
   test('round trips provider metadata', () {
     const item = CollectionItem(
       title: 'A Movie',
-      source: CollectionItemSource.tmdb,
+      source: CollectionItemSource.omdb,
       providerId: '42',
       posterUrl: 'https://image.example/poster.jpg',
       durationMinutes: 108,

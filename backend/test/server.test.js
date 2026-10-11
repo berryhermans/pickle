@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 const http = require('node:http');
 const { test } = require('node:test');
 
-const { createApp } = require('../server');
+const { createApp } = require('../src/app');
 
 async function withServer(options, run) {
   const server = createApp(options).listen(0, '127.0.0.1');
@@ -30,7 +30,7 @@ function getJson(server, pathname) {
   });
 }
 
-test('movie search calls TMDB and maps results to Pickle items', async () => {
+test('movie search calls OMDb and maps results to Pickle items', async () => {
   let requestUrl;
   await withServer({
     apiKey: 'test-key',
@@ -39,11 +39,11 @@ test('movie search calls TMDB and maps results to Pickle items', async () => {
       return {
         ok: true,
         json: async () => ({
-          results: [
+          Search: [
             {
-              id: 42,
-              title: 'Arrival',
-              poster_path: '/arrival.jpg',
+              imdbID: 'tt2543164',
+              Title: 'Arrival',
+              Poster: 'https://example.com/arrival.jpg',
             },
           ],
         }),
@@ -56,25 +56,28 @@ test('movie search calls TMDB and maps results to Pickle items', async () => {
     assert.deepEqual(response.body, [
       {
         title: 'Arrival',
-        providerId: '42',
-        posterUrl: 'https://image.tmdb.org/t/p/w500/arrival.jpg',
+        providerId: 'tt2543164',
+        posterUrl: 'https://example.com/arrival.jpg',
       },
     ]);
-    assert.equal(requestUrl.pathname, '/3/search/movie');
-    assert.equal(requestUrl.searchParams.get('api_key'), 'test-key');
-    assert.equal(requestUrl.searchParams.get('query'), 'Arrival');
+    assert.equal(requestUrl.href.split('?')[0], 'https://www.omdbapi.com/');
+    assert.equal(requestUrl.searchParams.get('apikey'), 'test-key');
+    assert.equal(requestUrl.searchParams.get('s'), 'Arrival');
+    assert.equal(requestUrl.searchParams.get('type'), 'movie');
   });
 });
 
-test('TV search maps TMDB show names', async () => {
+test('TV search uses the OMDb series type and maps show names', async () => {
   await withServer({
     apiKey: 'test-key',
     fetchImpl: async (url) => {
-      assert.equal(new URL(url).pathname, '/3/search/tv');
+      const requestUrl = new URL(url);
+      assert.equal(requestUrl.origin + requestUrl.pathname, 'https://www.omdbapi.com/');
+      assert.equal(requestUrl.searchParams.get('type'), 'series');
       return {
         ok: true,
         json: async () => ({
-          results: [{ id: 123, name: 'The Bear', poster_path: null }],
+          Search: [{ imdbID: 'tt14452776', Title: 'The Bear', Poster: 'N/A' }],
         }),
       };
     },
@@ -83,18 +86,59 @@ test('TV search maps TMDB show names', async () => {
 
     assert.equal(response.status, 200);
     assert.deepEqual(response.body, [
-      { title: 'The Bear', providerId: '123', posterUrl: null },
+      { title: 'The Bear', providerId: 'tt14452776', posterUrl: null },
     ]);
   });
 });
 
-test('search validates types and reports missing API key', async () => {
+test('search validates types and reports missing OMDb API key', async () => {
   await withServer({ apiKey: '', fetchImpl: async () => assert.fail() }, async (server) => {
     const unsupported = await getJson(server, '/search?type=person&query=Arrival');
     const unconfigured = await getJson(server, '/search?type=movie&query=Arrival');
 
     assert.equal(unsupported.status, 400);
     assert.equal(unconfigured.status, 503);
-    assert.match(unconfigured.body.error, /TMDB_API_KEY/);
+    assert.match(unconfigured.body.error, /OMDB_API_KEY/);
+  });
+});
+
+test('search returns an empty list when OMDb has no matches', async () => {
+  await withServer({
+    apiKey: 'test-key',
+    fetchImpl: async () => ({
+      ok: true,
+      json: async () => ({ Response: 'False', Error: 'Movie not found!' }),
+    }),
+  }, async (server) => {
+    const response = await getJson(server, '/search?type=movie&query=not-a-title');
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(response.body, []);
+  });
+});
+
+test('health and API root endpoints remain available', async () => {
+  await withServer({}, async (server) => {
+    const health = await getJson(server, '/health');
+    const root = await getJson(server, '/');
+
+    assert.deepEqual(health, { status: 200, body: { status: 'ok' } });
+    assert.equal(root.status, 200);
+    assert.deepEqual(root.body.endpoints, ['/search', '/health']);
+  });
+});
+
+test('OMDb failures use the centralized error response', async () => {
+  await withServer({
+    apiKey: 'test-key',
+    fetchImpl: async () => ({
+      ok: true,
+      json: async () => ({ Response: 'False', Error: 'Invalid API key!' }),
+    }),
+  }, async (server) => {
+    const response = await getJson(server, '/search?type=movie&query=Arrival');
+
+    assert.equal(response.status, 502);
+    assert.deepEqual(response.body, { error: 'OMDb search failed' });
   });
 });

@@ -2,10 +2,10 @@
   "name": "pickle-backend",
   "version": "0.1.0",
   "description": "Express API for Pickle media lookups",
-  "main": "server.js",
+  "main": "src/server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node --watch server.js",
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
     "test": "node --test"
   },
   "keywords": [
