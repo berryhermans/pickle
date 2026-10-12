@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../app/pickle_theme.dart';
@@ -10,6 +11,7 @@ import '../data/media_search_service.dart';
 import '../models/collection_item.dart';
 import '../models/pickle_collection.dart';
 import 'new_collection_page.dart';
+import 'random_selection_prototype.dart';
 
 class CollectionPage extends StatefulWidget {
   const CollectionPage({
@@ -35,6 +37,7 @@ class _CollectionPageState extends State<CollectionPage> {
   CollectionItem? _challenger;
   bool _kingOnLeft = true;
   int _matchIndex = 0;
+  int _randomPickerVariant = 0;
   PickMethod? _method;
 
   Future<void> _addItem() async {
@@ -338,11 +341,31 @@ class _CollectionPageState extends State<CollectionPage> {
     _method = method;
     switch (method) {
       case PickMethod.random:
-        _declareWinner(
-          widget.collection.items[_random.nextInt(
-            widget.collection.items.length,
-          )],
+        final result = await Navigator.of(context).push<RandomSelectionResult>(
+          MaterialPageRoute(
+            builder: (_) => RandomSelectionPrototypePage(
+              options: widget.collection.items
+                  .map((item) => item.title)
+                  .toList(),
+              initialVariant: _randomPickerVariant,
+              pickOnOpen: true,
+            ),
+          ),
         );
+        if (!mounted) return;
+        if (result == null) {
+          setState(() => _method = null);
+          return;
+        }
+        _randomPickerVariant = result.variantIndex;
+        final winnerIndex = result.winnerIndex;
+        if (winnerIndex == null ||
+            winnerIndex < 0 ||
+            winnerIndex >= widget.collection.items.length) {
+          setState(() => _method = null);
+          return;
+        }
+        await _declareWinner(widget.collection.items[winnerIndex]);
       case PickMethod.tournament:
         _startTournament();
       case PickMethod.kingOfTheHill:
@@ -439,6 +462,28 @@ class _CollectionPageState extends State<CollectionPage> {
           overflow: TextOverflow.ellipsis,
         ),
         actions: [
+          if (kDebugMode && widget.collection.items.isNotEmpty)
+            IconButton(
+              tooltip: 'Random picker prototype',
+              onPressed: () async {
+                final result = await Navigator.of(context)
+                    .push<RandomSelectionResult>(
+                      MaterialPageRoute(
+                        builder: (_) => RandomSelectionPrototypePage(
+                          options: widget.collection.items
+                              .map((item) => item.title)
+                              .toList(),
+                          initialVariant: _randomPickerVariant,
+                        ),
+                      ),
+                    );
+                if (!mounted || result == null) return;
+                setState(() {
+                  _randomPickerVariant = result.variantIndex;
+                });
+              },
+              icon: const Icon(Icons.animation_outlined),
+            ),
           IconButton(
             tooltip: 'Edit collection',
             onPressed: _editCollection,
