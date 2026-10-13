@@ -1,14 +1,17 @@
+import 'dart:math';
+
 enum CollectionItemSource { manual, omdb }
 
 class CollectionItem {
-  const CollectionItem({
+  CollectionItem({
+    String? id,
     required this.title,
     required this.source,
     this.providerId,
     this.posterUrl,
     this.durationMinutes,
     this.genres = const [],
-  });
+  }) : id = id == null || id.isEmpty ? _newId() : id;
 
   factory CollectionItem.manual(String title) => CollectionItem(
     title: title,
@@ -25,6 +28,7 @@ class CollectionItem {
     final rawDuration = json['durationMinutes'];
 
     return CollectionItem(
+      id: json['id'] as String?,
       title: json['title'] as String? ?? '',
       source: source,
       providerId: json['providerId']?.toString(),
@@ -40,6 +44,14 @@ class CollectionItem {
     return null;
   }
 
+  static final _random = Random.secure();
+
+  static String _newId() => List<int>.generate(
+    16,
+    (_) => _random.nextInt(256),
+  ).map((byte) => byte.toRadixString(16).padLeft(2, '0')).join();
+
+  final String id;
   final String title;
   final CollectionItemSource source;
   final String? providerId;
@@ -48,6 +60,7 @@ class CollectionItem {
   final List<String> genres;
 
   Map<String, Object?> toJson() => {
+    'id': id,
     'title': title,
     'source': source.name,
     'providerId': providerId,

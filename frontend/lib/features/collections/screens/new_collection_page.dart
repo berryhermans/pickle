@@ -48,6 +48,9 @@ class _NewCollectionPageState extends State<NewCollectionPage> {
           name: name,
           type: _type,
           items: widget.collection?.items,
+          randomPolicyOverride: widget.collection?.randomPolicyOverride,
+          previousRandomEntryId: widget.collection?.previousRandomEntryId,
+          randomCycleEntryIds: widget.collection?.randomCycleEntryIds,
         ),
       ),
     );
