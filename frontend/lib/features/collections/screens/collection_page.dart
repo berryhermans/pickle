@@ -10,6 +10,8 @@ import '../../picking/widgets/winner_dialog.dart';
 import '../data/media_search_service.dart';
 import '../models/collection_item.dart';
 import '../models/pickle_collection.dart';
+import '../models/random_selection.dart';
+import '../models/random_selection_policy.dart';
 import 'new_collection_page.dart';
 import 'random_selection_prototype.dart';
 
@@ -17,11 +19,13 @@ class CollectionPage extends StatefulWidget {
   const CollectionPage({
     super.key,
     required this.collection,
+    required this.globalRandomPolicy,
     required this.onChanged,
     required this.onDeleted,
   });
 
   final PickleCollection collection;
+  final RandomSelectionPolicy globalRandomPolicy;
   final Future<void> Function() onChanged;
   final Future<void> Function(PickleCollection collection) onDeleted;
 
@@ -69,7 +73,10 @@ class _CollectionPageState extends State<CollectionPage> {
       );
       final value = item?.trim();
       if (!mounted || value == null || value.isEmpty) return;
-      setState(() => widget.collection.items.add(CollectionItem.manual(value)));
+      setState(() {
+        widget.collection.items.add(CollectionItem.manual(value));
+        _reconcileRandomCycle();
+      });
       await widget.onChanged();
       return;
     }
@@ -259,13 +266,29 @@ class _CollectionPageState extends State<CollectionPage> {
 
     final selected = picked;
     if (!mounted || selected == null) return;
-    setState(() => widget.collection.items.add(selected));
+    setState(() {
+      widget.collection.items.add(selected);
+      _reconcileRandomCycle();
+    });
     await widget.onChanged();
   }
 
   Future<void> _removeItem(int index) async {
-    setState(() => widget.collection.items.removeAt(index));
+    setState(() {
+      widget.collection.items.removeAt(index);
+      _reconcileRandomCycle();
+    });
     await widget.onChanged();
+  }
+
+  void _reconcileRandomCycle() {
+    final reconciled = RandomSelection.reconcileCycle(
+      items: widget.collection.items,
+      cycleEntryIds: widget.collection.randomCycleEntryIds,
+    );
+    widget.collection.randomCycleEntryIds
+      ..clear()
+      ..addAll(reconciled);
   }
 
   Future<void> _editCollection() async {
@@ -341,6 +364,18 @@ class _CollectionPageState extends State<CollectionPage> {
     _method = method;
     switch (method) {
       case PickMethod.random:
+        final selection = RandomSelection.pick(
+          items: widget.collection.items,
+          policy:
+              widget.collection.randomPolicyOverride ??
+              widget.globalRandomPolicy,
+          previousEntryId: widget.collection.previousRandomEntryId,
+          cycleEntryIds: widget.collection.randomCycleEntryIds,
+          random: _random,
+        );
+        final winnerIndex = widget.collection.items.indexWhere(
+          (item) => item.id == selection.winner.id,
+        );
         final result = await Navigator.of(context).push<RandomSelectionResult>(
           MaterialPageRoute(
             builder: (_) => RandomSelectionPrototypePage(
@@ -349,6 +384,7 @@ class _CollectionPageState extends State<CollectionPage> {
                   .toList(),
               initialVariant: _randomPickerVariant,
               pickOnOpen: true,
+              selectedWinnerIndex: winnerIndex,
             ),
           ),
         );
@@ -358,14 +394,16 @@ class _CollectionPageState extends State<CollectionPage> {
           return;
         }
         _randomPickerVariant = result.variantIndex;
-        final winnerIndex = result.winnerIndex;
-        if (winnerIndex == null ||
-            winnerIndex < 0 ||
-            winnerIndex >= widget.collection.items.length) {
+        if (result.winnerIndex != winnerIndex) {
           setState(() => _method = null);
           return;
         }
-        await _declareWinner(widget.collection.items[winnerIndex]);
+        widget.collection.previousRandomEntryId = selection.previousEntryId;
+        widget.collection.randomCycleEntryIds
+          ..clear()
+          ..addAll(selection.cycleEntryIds);
+        await widget.onChanged();
+        await _declareWinner(selection.winner);
       case PickMethod.tournament:
         _startTournament();
       case PickMethod.kingOfTheHill:

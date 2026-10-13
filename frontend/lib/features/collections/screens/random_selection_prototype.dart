@@ -19,11 +19,13 @@ class RandomSelectionPrototypePage extends StatefulWidget {
     required this.options,
     this.initialVariant = 0,
     this.pickOnOpen = false,
+    this.selectedWinnerIndex,
   });
 
   final List<String> options;
   final int initialVariant;
   final bool pickOnOpen;
+  final int? selectedWinnerIndex;
 
   @override
   State<RandomSelectionPrototypePage> createState() =>
@@ -97,7 +99,8 @@ class _RandomSelectionPrototypePageState
   void _startPick() {
     if (_spinning) return;
     setState(() {
-      _winnerIndex = _random.nextInt(widget.options.length);
+      _winnerIndex =
+          widget.selectedWinnerIndex ?? _random.nextInt(widget.options.length);
       _spinning = true;
       _showingWinner = false;
     });

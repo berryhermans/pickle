@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../app/pickle_theme.dart';
 import '../data/collection_storage.dart';
 import '../models/pickle_collection.dart';
+import '../models/random_selection_policy.dart';
 import 'collection_page.dart';
 import 'new_collection_page.dart';
 
@@ -16,6 +17,7 @@ class CollectionsPage extends StatefulWidget {
 class _CollectionsPageState extends State<CollectionsPage> {
   final List<PickleCollection> _collections = [];
   final CollectionStorage _storage = CollectionStorage();
+  RandomSelectionPolicy _globalRandomPolicy = RandomSelectionPolicy.uniform;
   bool _isLoading = true;
 
   @override
@@ -26,11 +28,13 @@ class _CollectionsPageState extends State<CollectionsPage> {
 
   Future<void> _loadCollections() async {
     final collections = await _storage.load();
+    final globalRandomPolicy = await _storage.loadGlobalRandomPolicy();
     if (!mounted) return;
     setState(() {
       _collections
         ..clear()
         ..addAll(collections);
+      _globalRandomPolicy = globalRandomPolicy;
       _isLoading = false;
     });
   }
@@ -53,6 +57,7 @@ class _CollectionsPageState extends State<CollectionsPage> {
       MaterialPageRoute(
         builder: (_) => CollectionPage(
           collection: collection,
+          globalRandomPolicy: _globalRandomPolicy,
           onChanged: _saveCollections,
           onDeleted: _deleteCollection,
         ),
