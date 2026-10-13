@@ -6,6 +6,7 @@ import '../models/pickle_collection.dart';
 import '../models/random_selection_policy.dart';
 import 'collection_page.dart';
 import 'new_collection_page.dart';
+import 'settings_page.dart';
 
 class CollectionsPage extends StatefulWidget {
   const CollectionsPage({super.key});
@@ -68,6 +69,16 @@ class _CollectionsPageState extends State<CollectionsPage> {
     await _saveCollections();
   }
 
+  Future<void> _openSettings() async {
+    await Navigator.of(context).push<RandomSelectionPolicy>(
+      MaterialPageRoute(builder: (_) => const SettingsPage()),
+    );
+    if (!mounted) return;
+    final policy = await _storage.loadGlobalRandomPolicy();
+    if (!mounted) return;
+    setState(() => _globalRandomPolicy = policy);
+  }
+
   Future<void> _deleteCollection(PickleCollection collection) async {
     setState(() => _collections.remove(collection));
     await _saveCollections();
@@ -75,7 +86,16 @@ class _CollectionsPageState extends State<CollectionsPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const _BrandTitle()),
+    appBar: AppBar(
+      title: const _BrandTitle(),
+      actions: [
+        IconButton(
+          tooltip: 'Settings',
+          onPressed: _openSettings,
+          icon: const Icon(Icons.settings_outlined),
+        ),
+      ],
+    ),
     body: SafeArea(
       child: Column(
         children: [

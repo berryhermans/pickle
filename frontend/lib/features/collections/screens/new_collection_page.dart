@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../app/pickle_theme.dart';
 import '../models/pickle_collection.dart';
+import '../models/random_selection_policy.dart';
 
 class CollectionEditorResult {
   const CollectionEditorResult({this.collection, this.deleted = false});
@@ -11,9 +12,14 @@ class CollectionEditorResult {
 }
 
 class NewCollectionPage extends StatefulWidget {
-  const NewCollectionPage({super.key, this.collection});
+  const NewCollectionPage({
+    super.key,
+    this.collection,
+    this.globalRandomPolicy = RandomSelectionPolicy.uniform,
+  });
 
   final PickleCollection? collection;
+  final RandomSelectionPolicy globalRandomPolicy;
 
   @override
   State<NewCollectionPage> createState() => _NewCollectionPageState();
@@ -22,11 +28,16 @@ class NewCollectionPage extends StatefulWidget {
 class _NewCollectionPageState extends State<NewCollectionPage> {
   final _nameController = TextEditingController();
   CollectionType _type = CollectionType.movie;
+  late bool _useGlobalRandomPolicy;
+  late RandomSelectionPolicy _randomPolicy;
 
   @override
   void initState() {
     super.initState();
     final collection = widget.collection;
+    _useGlobalRandomPolicy = collection?.randomPolicyOverride == null;
+    _randomPolicy =
+        collection?.randomPolicyOverride ?? widget.globalRandomPolicy;
     if (collection != null) {
       _nameController.text = collection.name;
       _type = collection.type;
@@ -48,7 +59,10 @@ class _NewCollectionPageState extends State<NewCollectionPage> {
           name: name,
           type: _type,
           items: widget.collection?.items,
-          randomPolicyOverride: widget.collection?.randomPolicyOverride,
+          randomPolicyOverride: widget.collection == null ||
+                  _useGlobalRandomPolicy
+              ? null
+              : _randomPolicy,
           previousRandomEntryId: widget.collection?.previousRandomEntryId,
           randomCycleEntryIds: widget.collection?.randomCycleEntryIds,
         ),
@@ -171,6 +185,49 @@ class _NewCollectionPageState extends State<NewCollectionPage> {
                 ],
               ),
             ),
+          if (widget.collection != null) ...[
+            const SizedBox(height: 25),
+            const _FieldLabel('RANDOM SELECTION'),
+            const SizedBox(height: 8),
+            SwitchListTile(
+              key: const ValueKey('inherit-global-random-policy'),
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Use global default'),
+              subtitle: Text(
+                'Current global default: ${widget.globalRandomPolicy.label}',
+              ),
+              value: _useGlobalRandomPolicy,
+              onChanged: (value) =>
+                  setState(() => _useGlobalRandomPolicy = value),
+            ),
+            if (!_useGlobalRandomPolicy) ...[
+              const SizedBox(height: 8),
+              DropdownButtonFormField<RandomSelectionPolicy>(
+                key: const ValueKey('explicit-random-policy-dropdown'),
+                initialValue: _randomPolicy,
+                decoration: const InputDecoration(
+                  labelText: 'Collection policy',
+                ),
+                items: [
+                  for (final policy in RandomSelectionPolicy.values)
+                    DropdownMenuItem(
+                      value: policy,
+                      child: Text(policy.label),
+                    ),
+                ],
+                onChanged: (policy) {
+                  if (policy != null) {
+                    setState(() => _randomPolicy = policy);
+                  }
+                },
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _randomPolicy.description,
+                style: TextStyle(color: Colors.blueGrey.shade700),
+              ),
+            ],
+          ],
           const SizedBox(height: 30),
           if (widget.collection != null) ...[
             SizedBox(

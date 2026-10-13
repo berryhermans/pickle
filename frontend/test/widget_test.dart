@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:pickle/app/pickle_app.dart';
+import 'package:pickle/features/collections/models/random_selection_policy.dart';
 
 Future<void> _openCollectionWithOptions(
   WidgetTester tester,
@@ -30,6 +31,13 @@ Future<void> _openCollectionWithOptions(
     await tester.tap(find.text('Add'));
     await tester.pumpAndSettle();
   }
+}
+
+Future<void> _finishCollectionEditor(WidgetTester tester) async {
+  await tester.drag(find.byType(ListView).last, const Offset(0, -600));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('Done'));
+  await tester.pumpAndSettle();
 }
 
 void main() {
@@ -147,6 +155,110 @@ void main() {
 
     expect(find.text('Tonight'), findsOneWidget);
     expect(find.textContaining('2 options'), findsOneWidget);
+  });
+
+  testWidgets('Random settings are reachable, selectable, and persistent', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const PickleApp());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Settings'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Random selection'), findsOneWidget);
+    expect(find.text('Uniform random'), findsOneWidget);
+    expect(find.text('Avoid previous pick'), findsOneWidget);
+    expect(find.text('No repeat until all used'), findsOneWidget);
+
+    final uniform = tester.widget<RadioGroup<RandomSelectionPolicy>>(
+      find.byType(RadioGroup<RandomSelectionPolicy>),
+    );
+    expect(uniform.groupValue, RandomSelectionPolicy.uniform);
+
+    await tester.tap(find.text('Avoid previous pick').first);
+    await tester.pumpAndSettle();
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    await tester.pumpWidget(const PickleApp(key: ValueKey('settings-restart')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Settings'));
+    await tester.pumpAndSettle();
+
+    final avoidPrevious = tester.widget<RadioGroup<RandomSelectionPolicy>>(
+      find.byType(RadioGroup<RandomSelectionPolicy>),
+    );
+    expect(avoidPrevious.groupValue, RandomSelectionPolicy.avoidPrevious);
+  });
+
+  testWidgets('collection Random override persists and can be cleared', (
+    WidgetTester tester,
+  ) async {
+    await _openCollectionWithOptions(tester, []);
+    await tester.tap(find.byTooltip('Edit collection'));
+    await tester.pumpAndSettle();
+
+    final inheritSwitch = find.byKey(
+      const ValueKey('inherit-global-random-policy'),
+    );
+    expect(tester.widget<SwitchListTile>(inheritSwitch).value, isTrue);
+    await tester.tap(inheritSwitch);
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byKey(const ValueKey('explicit-random-policy-dropdown')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('No repeat until all used').last);
+    await tester.pumpAndSettle();
+    await _finishCollectionEditor(tester);
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Settings'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Avoid previous pick').first);
+    await tester.pumpAndSettle();
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    await tester.pumpWidget(const PickleApp(key: ValueKey('override-restart')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Tonight'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Edit collection'));
+    await tester.pumpAndSettle();
+
+    expect(tester.widget<SwitchListTile>(inheritSwitch).value, isFalse);
+    final dropdown = tester
+        .widget<DropdownButtonFormField<RandomSelectionPolicy>>(
+          find.byKey(const ValueKey('explicit-random-policy-dropdown')),
+        );
+    expect(dropdown.initialValue, RandomSelectionPolicy.noRepeatUntilAllUsed);
+    expect(
+      find.text('Current global default: Avoid previous pick'),
+      findsOneWidget,
+    );
+
+    await tester.tap(inheritSwitch);
+    await tester.pumpAndSettle();
+    await _finishCollectionEditor(tester);
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(const PickleApp(key: ValueKey('inherit-restart')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Tonight'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Edit collection'));
+    await tester.pumpAndSettle();
+
+    expect(tester.widget<SwitchListTile>(inheritSwitch).value, isTrue);
+    expect(
+      find.text('Current global default: Avoid previous pick'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('editing a collection updates and persists its title', (

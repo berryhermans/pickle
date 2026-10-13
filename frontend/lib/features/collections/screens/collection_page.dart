@@ -294,7 +294,10 @@ class _CollectionPageState extends State<CollectionPage> {
   Future<void> _editCollection() async {
     final result = await Navigator.of(context).push<CollectionEditorResult>(
       MaterialPageRoute(
-        builder: (_) => NewCollectionPage(collection: widget.collection),
+        builder: (_) => NewCollectionPage(
+          collection: widget.collection,
+          globalRandomPolicy: widget.globalRandomPolicy,
+        ),
       ),
     );
     if (!mounted || result == null) return;
@@ -306,7 +309,11 @@ class _CollectionPageState extends State<CollectionPage> {
 
     final updatedCollection = result.collection;
     if (updatedCollection == null) return;
-    setState(() => widget.collection.name = updatedCollection.name);
+    setState(() {
+      widget.collection.name = updatedCollection.name;
+      widget.collection.randomPolicyOverride =
+          updatedCollection.randomPolicyOverride;
+    });
     await widget.onChanged();
   }
 
