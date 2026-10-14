@@ -20,12 +20,14 @@ class RandomSelectionPrototypePage extends StatefulWidget {
     this.initialVariant = 0,
     this.pickOnOpen = false,
     this.selectedWinnerIndex,
+    this.reduceMotion = false,
   });
 
   final List<String> options;
   final int initialVariant;
   final bool pickOnOpen;
   final int? selectedWinnerIndex;
+  final bool reduceMotion;
 
   @override
   State<RandomSelectionPrototypePage> createState() =>
@@ -35,6 +37,7 @@ class RandomSelectionPrototypePage extends StatefulWidget {
 class _RandomSelectionPrototypePageState
     extends State<RandomSelectionPrototypePage>
     with SingleTickerProviderStateMixin {
+  static const _letterDecoderVariant = 2;
   static const _variants = [
     ('Wheel', 'Prize wheel'),
     ('Reel', 'Slot machine'),
@@ -47,7 +50,9 @@ class _RandomSelectionPrototypePageState
     duration: const Duration(milliseconds: 3600),
   )..addStatusListener(_onAnimationStatus);
 
-  late int _variant = widget.initialVariant;
+  late int _variant = widget.pickOnOpen
+      ? _letterDecoderVariant
+      : widget.initialVariant;
   int? _winnerIndex;
   bool _spinning = false;
   bool _showingWinner = false;
@@ -57,9 +62,7 @@ class _RandomSelectionPrototypePageState
     super.initState();
     if (widget.pickOnOpen) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        Future<void>.delayed(const Duration(milliseconds: 350), () {
-          if (mounted) _startPick();
-        });
+        if (mounted) _startPick();
       });
     }
   }
@@ -98,12 +101,20 @@ class _RandomSelectionPrototypePageState
 
   void _startPick() {
     if (_spinning) return;
+    final winnerIndex =
+        widget.selectedWinnerIndex ?? _random.nextInt(widget.options.length);
+    if (winnerIndex < 0 || winnerIndex >= widget.options.length) {
+      throw RangeError.index(winnerIndex, widget.options);
+    }
     setState(() {
-      _winnerIndex =
-          widget.selectedWinnerIndex ?? _random.nextInt(widget.options.length);
-      _spinning = true;
+      _winnerIndex = winnerIndex;
+      _spinning = !widget.reduceMotion;
       _showingWinner = false;
     });
+    if (widget.reduceMotion) {
+      _onAnimationStatus(AnimationStatus.completed);
+      return;
+    }
     _controller.forward(from: 0);
   }
 

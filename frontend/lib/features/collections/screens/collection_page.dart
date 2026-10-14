@@ -371,6 +371,14 @@ class _CollectionPageState extends State<CollectionPage> {
     _method = method;
     switch (method) {
       case PickMethod.random:
+        final reduceMotion =
+            MediaQuery.disableAnimationsOf(context) ||
+            (Theme.of(context).platform == TargetPlatform.iOS &&
+                WidgetsBinding
+                    .instance
+                    .platformDispatcher
+                    .accessibilityFeatures
+                    .reduceMotion);
         final selection = RandomSelection.pick(
           items: widget.collection.items,
           policy:
@@ -389,9 +397,9 @@ class _CollectionPageState extends State<CollectionPage> {
               options: widget.collection.items
                   .map((item) => item.title)
                   .toList(),
-              initialVariant: _randomPickerVariant,
               pickOnOpen: true,
               selectedWinnerIndex: winnerIndex,
+              reduceMotion: reduceMotion,
             ),
           ),
         );
@@ -400,7 +408,6 @@ class _CollectionPageState extends State<CollectionPage> {
           setState(() => _method = null);
           return;
         }
-        _randomPickerVariant = result.variantIndex;
         if (result.winnerIndex != winnerIndex) {
           setState(() => _method = null);
           return;
